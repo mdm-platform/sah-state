@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Cytoscape POC</title>
+	<script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
+	
+	<style>
+		body { margin: 0; font-family: sans-serif; }
+		#cy {
+			width: 100vw;
+			height: 100vh;
+			display: inline-block;
+		}
+	</style>
+</head>
+
+<body>
+<div id="cy"></div>
+
+<script>
+	// ---------------------
+	// Elements
+	// ---------------------
+	const elements = [
+		// Nodes
+		{ data: { id: 'sah-web-ui', label: 'sah-web-ui', type: 'UI', status: 'live' }},
+		{ data: { id: 'sah', label: 'SAH', type: 'agent', status: 'live' }},
+		{ data: { id: 'career-agent', label: 'Career Sub-Agent', type: 'sub-agent', status: 'live' }},
+		
+		{ data: { id: 'conversation-mgr', label: 'conversation-mgr', type: 'lambda', status: 'live' }},
+		{ data: { id: 'context-mgr', label: 'context-mgr', type: 'lambda', status: 'in-development' }},
+		
+		{ data: { id: 'cognito', label: 'Cognito Auth', type: 'auth', status: 'live' }},
+		
+		{ data: { id: 'sah-mcp', label: 'SAH MCP Server', type: 'mcp-server', status: 'live' }},
+		
+		{ data: { id: 'agent-py-tools', label: 'agent-py-tools', type: 'lambda', status: 'live' }},
+		{ data: { id: 'resume_builder', label: 'resume_builder', type: 'tool', status: 'live' }},
+		
+		// Edges
+		{ data: { source: 'sah-web-ui', target: 'cognito', label: 'auth' }},
+		
+		{ data: { source: 'sah-web-ui', target: 'sah', label: 'send user messages' }},
+		
+		{ data: { source: 'sah-web-ui', target: 'conversation-mgr', label: 'REST' }},
+		
+		{ data: { source: 'sah-web-ui', target: 'context-mgr', label: 'REST' }},
+		
+		{ data: { source: 'sah', target: 'career-agent', label: 'delegates' }},
+		
+		// Agent to MCP relationships
+		{ data: { source: 'sah', target: 'sah-mcp', label: 'MCP' }},
+		{ data: { source: 'career-agent', target: 'sah-mcp', label: 'MCP' }},
+		
+		// MCP to lambdas or service tools relationships
+		{ data: { source: 'sah-mcp', target: 'conversation-mgr', label: 'invoke lambda' }},
+		{ data: { source: 'sah-mcp', target: 'context-mgr', label: 'invoke lambda' }},
+		{ data: { source: 'sah-mcp', target: 'agent-py-tools', label: 'invoke lambda' }},
+		
+		// Lambda to tool relationships
+		{ data: { source: 'agent-py-tools', target: 'resume_builder', label: 'contains tool' }},
+	];
+	
+	
+	// -------------------------
+	// Load saved positions
+	// -------------------------
+	const savedPositions = JSON.parse(localStorage.getItem("cyPositions") || "{}");
+	
+	// Apply preset positions if found
+	const elementsWithPositions = elements.map(el => {
+		if (savedPositions[el.data?.id]) {
+			return {
+				...el,
+				position: savedPositions[el.data.id]
+			};
+		}
+		return el;
+	});
+	
+	
+	// -------------------------
+	// Initialize Cytoscape
+	// -------------------------
+	const cy = cytoscape({
+		container: document.getElementById('cy'),
+		
+		elements: elementsWithPositions,
+		
+		layout: Object.keys(savedPositions).length > 0
+				? { name: "preset" }
+				: { name: "cose", animate: true },
+		
+		style: [
+			{
+				selector: 'node',
+				style: {
+					'background-color': ele => {
+						const colors = {
+							'UI': '#6A1B9A',          // dark purple
+							'agent': '#1E88E5',       // medium blue
+							'sub-agent': '#90CAF9',   // light blue
+							'lambda': '#00897B',      // teal
+							'tool': '#EF6C00',        // orange
+							'auth': '#C62828',        // red
+							'mcp-server': '#4527A0'   // deep indigo
+						};
+						return colors[ele.data('type')] || '#777';
+					},
+					
+					// Border based on status
+					'border-color': ele => {
+						const status = ele.data('status');
+						if (status === 'live') return '#2ECC71';
+						if (status === 'in-development') return 'orange';
+						if (status === 'planned') return '#3498DB';
+						return '#555';
+					},
+					'border-width': 3,
+					'border-style': 'double',
+					
+					// ADA-compliant text color selection
+					'color': ele => {
+						const bg = ele.style('background-color');
+						// Rough luminance check for contrast
+						const hex = bg.replace('#', '');
+						const r = parseInt(hex.substring(0, 2), 16);
+						const g = parseInt(hex.substring(2, 4), 16);
+						const b = parseInt(hex.substring(4, 6), 16);
+						const luminance = (0.299*r + 0.587*g + 0.114*b) / 255;
+						return luminance > 0.5 ? 'black' : 'white';
+					},
+					
+					// Label
+					'label': 'data(label)',
+					'font-size': '7px',
+					'font-weight': 'bold',
+					
+					// Text wrapping and multiline support
+					'text-wrap': 'wrap',
+					'text-max-width': '50px',
+					
+					'text-valign': 'center',
+					'text-halign': 'center',
+					
+					// Node size
+					'width': 65,
+					'height': 65,
+					
+					// Shape by type
+					'shape': ele => {
+						if (ele.data('type') === 'tool') return 'round-rectangle';
+						if (ele.data('type') === 'lambda') return 'hexagon';
+						return 'ellipse';
+					}
+				}
+			},
+			
+			{
+				selector: 'edge',
+				style: {
+					'line-color': 'lightblue',
+					'width': 1,
+					'curve-style': 'bezier',
+					'target-arrow-shape': 'triangle',
+					'target-arrow-color': '#ccc',
+					'font-size': '6px',
+					'text-background-opacity': 0.7,
+					'text-background-color': '#ffffff',
+					'text-background-padding': '2px',
+					'label': 'data(label)'
+				}
+			}
+		]
+	});
+	
+	
+	// -------------------------
+	// Save positions on drag
+	// -------------------------
+	cy.on('dragfree', 'node', () => {
+		const positions = {};
+		cy.nodes().forEach(node => {
+			positions[node.id()] = node.position();
+		});
+		localStorage.setItem("cyPositions", JSON.stringify(positions));
+	});
+
+</script>
+</body>
+</html>
