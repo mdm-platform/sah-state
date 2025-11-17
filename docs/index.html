@@ -66,7 +66,19 @@
 	// -------------------------
 	// Load saved positions
 	// -------------------------
-	const savedPositions = JSON.parse(localStorage.getItem("cyPositions") || "{}");
+	const defaultPositions = {
+		"sah-web-ui": {"x": -115.97227195923439, "y": 162.75606405897028},
+		"sah": {"x": 129.70023308331645, "y": 162.3864894428911},
+		"career-agent": {"x": 285.72997514412066, "y": 207.96328553387175},
+		"conversation-mgr": {"x": -12.845641237203406, "y": 220.46411339483444},
+		"context-mgr": {"x": -63.170624122619046, "y": 308.06136038211196},
+		"cognito": {"x": -115.796291396419, "y": 54.37547558257565},
+		"sah-mcp": {"x": 133.47826993347454, "y": 282.75922691643916},
+		"agent-py-tools": {"x": -57.57780929883516, "y": 400.16689167573776},
+		"resume_builder": {"x": -147.16805990203588, "y": 524.6097245911255}
+	};
+	
+	const savedPositions = JSON.parse(localStorage.getItem("cyPositions") || JSON.stringify(defaultPositions));
 	
 	// Apply preset positions if found
 	const elementsWithPositions = elements.map(el => {
@@ -78,7 +90,6 @@
 		}
 		return el;
 	});
-	
 	
 	// -------------------------
 	// Initialize Cytoscape
