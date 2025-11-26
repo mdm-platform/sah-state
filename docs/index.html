@@ -35,8 +35,9 @@
 		
 		{ data: { id: 'sah-mcp', label: 'SAH MCP Server', type: 'mcp-server', status: 'live' }},
 		
-		{ data: { id: 'agent-py-tools', label: 'agent-py-tools', type: 'lambda', status: 'live' }},
+		{ data: { id: 'agent-py-tools', label: 'agent-py-tools (py container)', type: 'container', status: 'live' }},
 		{ data: { id: 'resume_builder', label: 'resume_builder', type: 'tool', status: 'live' }},
+		{ data: { id: 'messaging_email', label: 'messaging_email', type: 'tool', status: 'live' }},
 		
 		// Edges
 		{ data: { source: 'sah-web-ui', target: 'cognito', label: 'auth' }},
@@ -56,28 +57,29 @@
 		// MCP to lambdas or service tools relationships
 		{ data: { source: 'sah-mcp', target: 'conversation-mgr', label: 'invoke lambda' }},
 		{ data: { source: 'sah-mcp', target: 'context-mgr', label: 'invoke lambda' }},
-		{ data: { source: 'sah-mcp', target: 'agent-py-tools', label: 'invoke lambda' }},
+		{ data: { source: 'sah-mcp', target: 'agent-py-tools', label: 'invoke app runner' }},
 		
 		// Lambda to tool relationships
 		{ data: { source: 'agent-py-tools', target: 'resume_builder', label: 'contains tool' }},
+		{ data: { source: 'agent-py-tools', target: 'messaging_email', label: 'contains tool' }},
 	];
 	
 	
 	// -------------------------
-	// Load saved positions
+	// Load starter positions
 	// -------------------------
 	const defaultPositions = {
-		"sah-web-ui": {"x": -115.97227195923439, "y": 162.75606405897028},
-		"sah": {"x": 129.70023308331645, "y": 162.3864894428911},
-		"career-agent": {"x": 285.72997514412066, "y": 207.96328553387175},
-		"conversation-mgr": {"x": -12.845641237203406, "y": 220.46411339483444},
-		"context-mgr": {"x": -63.170624122619046, "y": 308.06136038211196},
-		"cognito": {"x": -115.796291396419, "y": 54.37547558257565},
-		"sah-mcp": {"x": 133.47826993347454, "y": 282.75922691643916},
-		"agent-py-tools": {"x": -57.57780929883516, "y": 400.16689167573776},
-		"resume_builder": {"x": -147.16805990203588, "y": 524.6097245911255}
+		"sah-web-ui": { x: -136.46861735899176, y: 125.40716799719024 },
+		"sah": { x: 117.85790018567883, y: 129.5923368032792 },
+		"career-agent": { x: 239.2715922380039, y: 205.23043948057077 },
+		"conversation-mgr": { x: 29.057998246745026, y: 191.31375549295726 },
+		"context-mgr": { x: -31.742894509657653, y: 259.3256057649112 },
+		"cognito": { x: -134.71406339785636, y: 9.738990045326172 },
+		"sah-mcp": { x: 133.47826993347454, y: 282.75922691643916 },
+		"agent-py-tools": { x: -57.57780929883516, y: 400.16689167573776 },
+		"resume_builder": { x: -177.07433188554245, y: 490.1892983459579 },
+		"messaging_email": { x: -176.37595844921347, y: 398.5921635804326 }
 	};
-	
 	const savedPositions = JSON.parse(localStorage.getItem("cyPositions") || JSON.stringify(defaultPositions));
 	
 	// Apply preset positions if found
@@ -115,11 +117,12 @@
 							'lambda': '#00897B',      // teal
 							'tool': '#EF6C00',        // orange
 							'auth': '#C62828',        // red
-							'mcp-server': '#4527A0'   // deep indigo
+							'mcp-server': '#4527A0',  // deep indigo
+							'container': '#122f62'    // new color (amber)
 						};
 						return colors[ele.data('type')] || '#777';
 					},
-					
+
 					// Border based on status
 					'border-color': ele => {
 						const status = ele.data('status');
@@ -130,11 +133,10 @@
 					},
 					'border-width': 3,
 					'border-style': 'double',
-					
+
 					// ADA-compliant text color selection
 					'color': ele => {
 						const bg = ele.style('background-color');
-						// Rough luminance check for contrast
 						const hex = bg.replace('#', '');
 						const r = parseInt(hex.substring(0, 2), 16);
 						const g = parseInt(hex.substring(2, 4), 16);
@@ -142,7 +144,7 @@
 						const luminance = (0.299*r + 0.587*g + 0.114*b) / 255;
 						return luminance > 0.5 ? 'black' : 'white';
 					},
-					
+
 					// Label
 					'label': 'data(label)',
 					'font-size': '7px',
@@ -163,6 +165,7 @@
 					'shape': ele => {
 						if (ele.data('type') === 'tool') return 'round-rectangle';
 						if (ele.data('type') === 'lambda') return 'hexagon';
+						if (ele.data('type') === 'container') return 'rectangle';
 						return 'ellipse';
 					}
 				}
