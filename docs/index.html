@@ -23,40 +23,61 @@
 	// Elements
 	// ---------------------
 	const elements = [
-		// Nodes
+		// # Nodes
+		// UI
 		{ data: { id: 'sah-web-ui', label: 'sah-web-ui', type: 'UI', status: 'live' }},
+
+		// Auth
+		{ data: { id: 'cognito', label: 'Cognito Auth', type: 'auth', status: 'live' }},
+
+
+		// AgentCore
 		{ data: { id: 'sah', label: 'SAH', type: 'agent', status: 'live' }},
 		{ data: { id: 'career-agent', label: 'Career Sub-Agent', type: 'sub-agent', status: 'live' }},
-		
+		{ data: { id: 'financials-agent', label: 'Financials Sub-Agent', type: 'sub-agent', status: 'live' }},
+		{ data: { id: 'wellness-agent', label: 'Wellness Sub-Agent', type: 'sub-agent', status: 'in-development' }},
+		{ data: { id: 'entertainment-agent', label: 'Entertainment Sub-Agent', type: 'sub-agent', status: 'in-development' }},
+		{ data: { id: 'shopping-agent', label: 'Shopping Sub-Agent', type: 'sub-agent', status: 'in-development' }},
+
+		// Lambdas
 		{ data: { id: 'conversation-mgr', label: 'conversation-mgr', type: 'lambda', status: 'live' }},
-		{ data: { id: 'context-mgr', label: 'context-mgr', type: 'lambda', status: 'in-development' }},
-		
-		{ data: { id: 'cognito', label: 'Cognito Auth', type: 'auth', status: 'live' }},
-		
-		{ data: { id: 'sah-mcp', label: 'SAH MCP Server', type: 'mcp-server', status: 'live' }},
-		
+		{ data: { id: 'sah-conversation-summarizer', label: 'summarizer', type: 'lambda', status: 'live' }},
+		{ data: { id: 'sah-income-expense-tracker', label: 'income-expense', type: 'lambda', status: 'live' }},
+
+		// App Runner
 		{ data: { id: 'agent-py-tools', label: 'agent-py-tools (py container)', type: 'container', status: 'live' }},
 		{ data: { id: 'resume_builder', label: 'resume_builder', type: 'tool', status: 'live' }},
 		{ data: { id: 'messaging_email', label: 'messaging_email', type: 'tool', status: 'live' }},
+
+		// EC2
+		{ data: { id: 'sah-mcp', label: 'SAH MCP Server', type: 'mcp-server', status: 'live' }},
 		
-		// Edges
+		// # Edges
+
+		// UI Relationships
 		{ data: { source: 'sah-web-ui', target: 'cognito', label: 'auth' }},
 		
 		{ data: { source: 'sah-web-ui', target: 'sah', label: 'send user messages' }},
-		
 		{ data: { source: 'sah-web-ui', target: 'conversation-mgr', label: 'REST' }},
 		
-		{ data: { source: 'sah-web-ui', target: 'context-mgr', label: 'REST' }},
-		
-		{ data: { source: 'sah', target: 'career-agent', label: 'delegates' }},
-		
-		// Agent to MCP relationships
-		{ data: { source: 'sah', target: 'sah-mcp', label: 'MCP' }},
-		{ data: { source: 'career-agent', target: 'sah-mcp', label: 'MCP' }},
-		
-		// MCP to lambdas or service tools relationships
-		{ data: { source: 'sah-mcp', target: 'conversation-mgr', label: 'invoke lambda' }},
-		{ data: { source: 'sah-mcp', target: 'context-mgr', label: 'invoke lambda' }},
+
+		// Agent Relationships
+		{ data: { source: 'sah', target: 'career-agent' }},
+		{ data: { source: 'sah', target: 'financials-agent' }},
+		{ data: { source: 'sah', target: 'wellness-agent' }},
+		{ data: { source: 'sah', target: 'entertainment-agent' }},
+		{ data: { source: 'sah', target: 'shopping-agent' }},
+		{ data: { source: 'sah', target: 'sah-mcp' }},
+
+		{ data: { source: 'career-agent', target: 'sah-mcp' }},
+		{ data: { source: 'financials-agent', target: 'sah-mcp' }},
+		{ data: { source: 'wellness-agent', target: 'sah-mcp' }},
+		{ data: { source: 'entertainment-agent', target: 'sah-mcp' }},
+		{ data: { source: 'shopping-agent', target: 'sah-mcp' }},
+
+		// MCP Server to lambdas or service tools relationships
+		{ data: { source: 'sah-mcp', target: 'sah-conversation-summarizer', label: 'invoke lambda' }},
+		{ data: { source: 'sah-mcp', target: 'sah-income-expense-tracker', label: 'invoke lambda' }},
 		{ data: { source: 'sah-mcp', target: 'agent-py-tools', label: 'invoke app runner' }},
 		
 		// Lambda to tool relationships
@@ -68,18 +89,8 @@
 	// -------------------------
 	// Load starter positions
 	// -------------------------
-	const defaultPositions = {
-		"sah-web-ui": { x: -136.46861735899176, y: 125.40716799719024 },
-		"sah": { x: 117.85790018567883, y: 129.5923368032792 },
-		"career-agent": { x: 239.2715922380039, y: 205.23043948057077 },
-		"conversation-mgr": { x: 29.057998246745026, y: 191.31375549295726 },
-		"context-mgr": { x: -31.742894509657653, y: 259.3256057649112 },
-		"cognito": { x: -134.71406339785636, y: 9.738990045326172 },
-		"sah-mcp": { x: 133.47826993347454, y: 282.75922691643916 },
-		"agent-py-tools": { x: -57.57780929883516, y: 400.16689167573776 },
-		"resume_builder": { x: -177.07433188554245, y: 490.1892983459579 },
-		"messaging_email": { x: -176.37595844921347, y: 398.5921635804326 }
-	};
+	const defaultPositions = {"sah-web-ui":{"x":-248.66956360066075,"y":98.88425133968758},"cognito":{"x":-246.79712174335722,"y":-7.67374230056024},"sah":{"x":-101.61318169867893,"y":93.06088996266645},"career-agent":{"x":117.47382895788442,"y":91.53962752038849},"financials-agent":{"x":20.152143714718292,"y":91.74585956814403},"wellness-agent":{"x":211.97823909264307,"y":299.00742816293644},"entertainment-agent":{"x":213.15554278450574,"y":217.3033856669101},"shopping-agent":{"x":193.88479377608354,"y":138.85976548499121},"conversation-mgr":{"x":-365.17338985541386,"y":97.98180516780998},"sah-conversation-summarizer":{"x":-84.53055467449497,"y":341.92295712268},"sah-income-expense-tracker":{"x":12.327881439372344,"y":366.9483138725902},"agent-py-tools":{"x":-207.19827785644648,"y":274.644508295567},"resume_builder":{"x":-333.3093595394234,"y":377.3645891241163},"messaging_email":{"x":-333.1107860832195,"y":279.5835989158654},"sah-mcp":{"x":18.149684871447274,"y":240.33393744694848}}
+
 	const savedPositions = JSON.parse(localStorage.getItem("cyPositions") || JSON.stringify(defaultPositions));
 	
 	// Apply preset positions if found
