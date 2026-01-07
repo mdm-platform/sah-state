@@ -1,12 +1,26 @@
 <!DOCTYPE html>
 <html lang="en-US">
+
 <head>
 	<meta charset="utf-8">
 	<title>Sah State</title>
 	<script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
-	
+
 	<style>
-		body { margin: 0; font-family: sans-serif; }
+		body {
+			margin: 0;
+			font-family: sans-serif;
+		}
+
+		.controls-section {
+			position: absolute;
+			z-index: 10;
+			background: rgba(255, 255, 255, 0.8);
+			padding: 10px;
+			border-bottom-right-radius: 8px;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+		}
+
 		#cy {
 			width: 100vw;
 			height: 100vh;
@@ -16,191 +30,231 @@
 </head>
 
 <body>
-<div id="cy"></div>
+	<div class="controls-section">
+		<button id="reset-positions-btn" onclick="resetPositions()">
+			Reset Node Positions
+		</button>
 
-<script>
-	// ---------------------
-	// Elements
-	// ---------------------
-	const elements = [
-		// Nodes
-		{ data: { id: 'sah-web-ui', label: 'sah-web-ui', type: 'UI', status: 'live' }},
-		{ data: { id: 'sah', label: 'SAH', type: 'agent', status: 'live' }},
-		{ data: { id: 'career-agent', label: 'Career Sub-Agent', type: 'sub-agent', status: 'live' }},
-		
-		{ data: { id: 'conversation-mgr', label: 'conversation-mgr', type: 'lambda', status: 'live' }},
-		{ data: { id: 'context-mgr', label: 'context-mgr', type: 'lambda', status: 'in-development' }},
-		
-		{ data: { id: 'cognito', label: 'Cognito Auth', type: 'auth', status: 'live' }},
-		
-		{ data: { id: 'sah-mcp', label: 'SAH MCP Server', type: 'mcp-server', status: 'live' }},
-		
-		{ data: { id: 'agent-py-tools', label: 'agent-py-tools (py container)', type: 'container', status: 'live' }},
-		{ data: { id: 'resume_builder', label: 'resume_builder', type: 'tool', status: 'live' }},
-		{ data: { id: 'messaging_email', label: 'messaging_email', type: 'tool', status: 'live' }},
-		
-		// Edges
-		{ data: { source: 'sah-web-ui', target: 'cognito', label: 'auth' }},
-		
-		{ data: { source: 'sah-web-ui', target: 'sah', label: 'send user messages' }},
-		
-		{ data: { source: 'sah-web-ui', target: 'conversation-mgr', label: 'REST' }},
-		
-		{ data: { source: 'sah-web-ui', target: 'context-mgr', label: 'REST' }},
-		
-		{ data: { source: 'sah', target: 'career-agent', label: 'delegates' }},
-		
-		// Agent to MCP relationships
-		{ data: { source: 'sah', target: 'sah-mcp', label: 'MCP' }},
-		{ data: { source: 'career-agent', target: 'sah-mcp', label: 'MCP' }},
-		
-		// MCP to lambdas or service tools relationships
-		{ data: { source: 'sah-mcp', target: 'conversation-mgr', label: 'invoke lambda' }},
-		{ data: { source: 'sah-mcp', target: 'context-mgr', label: 'invoke lambda' }},
-		{ data: { source: 'sah-mcp', target: 'agent-py-tools', label: 'invoke app runner' }},
-		
-		// Lambda to tool relationships
-		{ data: { source: 'agent-py-tools', target: 'resume_builder', label: 'contains tool' }},
-		{ data: { source: 'agent-py-tools', target: 'messaging_email', label: 'contains tool' }},
-	];
-	
-	
-	// -------------------------
-	// Load starter positions
-	// -------------------------
-	const defaultPositions = {
-		"sah-web-ui": { x: -136.46861735899176, y: 125.40716799719024 },
-		"sah": { x: 117.85790018567883, y: 129.5923368032792 },
-		"career-agent": { x: 239.2715922380039, y: 205.23043948057077 },
-		"conversation-mgr": { x: 29.057998246745026, y: 191.31375549295726 },
-		"context-mgr": { x: -31.742894509657653, y: 259.3256057649112 },
-		"cognito": { x: -134.71406339785636, y: 9.738990045326172 },
-		"sah-mcp": { x: 133.47826993347454, y: 282.75922691643916 },
-		"agent-py-tools": { x: -57.57780929883516, y: 400.16689167573776 },
-		"resume_builder": { x: -177.07433188554245, y: 490.1892983459579 },
-		"messaging_email": { x: -176.37595844921347, y: 398.5921635804326 }
-	};
-	const savedPositions = JSON.parse(localStorage.getItem("cyPositions") || JSON.stringify(defaultPositions));
-	
-	// Apply preset positions if found
-	const elementsWithPositions = elements.map(el => {
-		if (savedPositions[el.data?.id]) {
-			return {
-				...el,
-				position: savedPositions[el.data.id]
-			};
+	</div>
+	<div id="cy"></div>
+
+	<script>
+		// ---------------------
+		// Version Management
+		// ---------------------
+		const VERSION = "1.0.0"; // Increment this before each deployment
+
+		// Check version and reset if needed
+		const storedVersion = localStorage.getItem("appVersion");
+		if (storedVersion !== VERSION) {
+			// Version mismatch - clear all stored data to reset to defaults
+			localStorage.clear();
+			localStorage.setItem("appVersion", VERSION);
+		} else if (!storedVersion) {
+			// First load - store the version
+			localStorage.setItem("appVersion", VERSION);
 		}
-		return el;
-	});
-	
-	// -------------------------
-	// Initialize Cytoscape
-	// -------------------------
-	const cy = cytoscape({
-		container: document.getElementById('cy'),
-		
-		elements: elementsWithPositions,
-		
-		layout: Object.keys(savedPositions).length > 0
+
+		// ---------------------
+		// Elements
+		// ---------------------
+		const elements = [
+			// # Nodes
+			// UI
+			{ data: { id: 'sah-web-ui', label: 'sah-web-ui', type: 'UI', status: 'live' } },
+
+			// Auth
+			{ data: { id: 'cognito', label: 'Cognito Auth', type: 'auth', status: 'live' } },
+
+
+			// AgentCore Runtime Agents
+			{ data: { id: 'sah', label: 'SAH', type: 'agent', status: 'live' } },
+			{ data: { id: 'career-agent', label: 'Career Sub-Agent', type: 'sub-agent', status: 'live' } },
+			{ data: { id: 'financials-agent', label: 'Financials Sub-Agent', type: 'sub-agent', status: 'live' } },
+			{ data: { id: 'wellness-agent', label: 'Wellness Sub-Agent', type: 'sub-agent', status: 'in-development' } },
+			{ data: { id: 'entertainment-agent', label: 'Entertainment Sub-Agent', type: 'sub-agent', status: 'in-development' } },
+			{ data: { id: 'shopping-agent', label: 'Shopping Sub-Agent', type: 'sub-agent', status: 'in-development' } },
+
+			// Lambdas
+			{ data: { id: 'conversation-manager', label: 'Conversation Manager', type: 'lambda', status: 'live' } },
+			{ data: { id: 'user-profile', label: 'User Profile Manager', type: 'lambda', status: 'live' } },
+			{ data: { id: 'career-manager', label: 'Career Manager', type: 'lambda', status: 'in-development' } },
+			{ data: { id: 'finance-manager', label: 'Finance Manager', type: 'lambda', status: 'in-development' } },
+			{ data: { id: 'wellness-manager', label: 'Wellness Manager', type: 'lambda', status: 'planned' } },
+			{ data: { id: 'messaging-service', label: 'Messaging Service', type: 'lambda', status: 'in-development' } },
+
+
+			// AgentCore Gateway
+			{ data: { id: 'sah-mcp', label: 'SAH MCP Server', type: 'mcp-server', status: 'live' } },
+
+			// # Edges
+
+			// UI Relationships
+			{ data: { source: 'sah-web-ui', target: 'cognito', label: 'authenticate' } },
+
+			{ data: { source: 'sah-web-ui', target: 'sah', label: 'send user messages' } },
+			{ data: { source: 'sah-web-ui', target: 'conversation-manager', label: 'API Gateway' } },
+
+			// Agent Relationships
+			{ data: { source: 'sah', target: 'cognito', label: 'validate token' } },
+			{ data: { source: 'sah', target: 'career-agent' } },
+			{ data: { source: 'sah', target: 'financials-agent' } },
+			{ data: { source: 'sah', target: 'wellness-agent' } },
+			{ data: { source: 'sah', target: 'entertainment-agent' } },
+			{ data: { source: 'sah', target: 'shopping-agent' } },
+			{ data: { source: 'sah', target: 'sah-mcp' } },
+
+			{ data: { source: 'career-agent', target: 'sah-mcp' } },
+			{ data: { source: 'financials-agent', target: 'sah-mcp' } },
+			{ data: { source: 'wellness-agent', target: 'sah-mcp' } },
+			{ data: { source: 'entertainment-agent', target: 'sah-mcp' } },
+			{ data: { source: 'shopping-agent', target: 'sah-mcp' } },
+
+			// MCP Server to lambdas or service tools relationships
+			{ data: { source: 'sah-mcp', target: 'cognito', label: 'validate token' } },
+			{ data: { source: 'sah-mcp', target: 'conversation-manager', label: 'invoke lambda sdk' } },
+			{ data: { source: 'sah-mcp', target: 'user-profile', label: 'invoke lambda' } },
+			{ data: { source: 'sah-mcp', target: 'career-manager', label: 'invoke lambda' } },
+			{ data: { source: 'sah-mcp', target: 'finance-manager', label: 'invoke lambda' } },
+			{ data: { source: 'sah-mcp', target: 'wellness-manager', label: 'invoke lambda' } },
+			{ data: { source: 'sah-mcp', target: 'messaging-service', label: 'invoke lambda' } }
+		];
+
+
+		// -------------------------
+		// Load starter positions
+		// -------------------------
+		const defaultPositions = {"sah-web-ui":{"x":-248.66956360066075,"y":98.88425133968758},"cognito":{"x":52.5315062306964,"y":-250.78517770734757},"sah":{"x":-101.61318169867893,"y":93.06088996266645},"career-agent":{"x":54.168387743792316,"y":-28.71304267316788},"financials-agent":{"x":55.80486197317026,"y":-118.51709930827495},"wellness-agent":{"x":58.590932220366824,"y":210.4001974940001},"entertainment-agent":{"x":54.92834516140527,"y":133.53604574879805},"shopping-agent":{"x":53.00330858621309,"y":49.03892158713591},"conversation-manager":{"x":62.08531065566062,"y":328.5609849624411},"user-profile":{"x":356.96613905546917,"y":62.35401657996106},"career-manager":{"x":355.8278418054931,"y":-29.332314924581077},"finance-manager":{"x":355.7213381195345,"y":-120.57140242935264},"wellness-manager":{"x":357.5161303860551,"y":150.88714637152717},"messaging-service":{"x":354.96393638087574,"y":241.84002783357036},"sah-mcp":{"x":227.00958573393996,"y":87.69122915172218}}
+
+		const savedPositions = JSON.parse(localStorage.getItem("cyPositions") || JSON.stringify(defaultPositions));
+
+		// Apply preset positions if found
+		const elementsWithPositions = elements.map(el => {
+			if (savedPositions[el.data?.id]) {
+				return {
+					...el,
+					position: savedPositions[el.data.id]
+				};
+			}
+			return el;
+		});
+
+		// -------------------------
+		// Initialize Cytoscape
+		// -------------------------
+		const cy = cytoscape({
+			container: document.getElementById('cy'),
+
+			elements: elementsWithPositions,
+
+			layout: Object.keys(savedPositions).length > 0
 				? { name: "preset" }
 				: { name: "cose", animate: true },
-		
-		style: [
-			{
-				selector: 'node',
-				style: {
-					'background-color': ele => {
-						const colors = {
-							'UI': '#6A1B9A',          // dark purple
-							'agent': '#1E88E5',       // medium blue
-							'sub-agent': '#90CAF9',   // light blue
-							'lambda': '#00897B',      // teal
-							'tool': '#EF6C00',        // orange
-							'auth': '#C62828',        // red
-							'mcp-server': '#4527A0',  // deep indigo
-							'container': '#122f62'    // new color (amber)
-						};
-						return colors[ele.data('type')] || '#777';
-					},
 
-					// Border based on status
-					'border-color': ele => {
-						const status = ele.data('status');
-						if (status === 'live') return '#2ECC71';
-						if (status === 'in-development') return 'orange';
-						if (status === 'planned') return '#3498DB';
-						return '#555';
-					},
-					'border-width': 3,
-					'border-style': 'double',
+			style: [
+				{
+					selector: 'node',
+					style: {
+						'background-color': ele => {
+							const colors = {
+								'UI': '#6A1B9A',          // dark purple
+								'agent': '#1E88E5',       // medium blue
+								'sub-agent': '#90CAF9',   // light blue
+								'lambda': '#00897B',      // teal
+								'tool': '#EF6C00',        // orange
+								'auth': '#C62828',        // red
+								'mcp-server': '#4527A0',  // deep indigo
+								'container': '#122f62'    // new color (amber)
+							};
+							return colors[ele.data('type')] || '#777';
+						},
 
-					// ADA-compliant text color selection
-					'color': ele => {
-						const bg = ele.style('background-color');
-						const hex = bg.replace('#', '');
-						const r = parseInt(hex.substring(0, 2), 16);
-						const g = parseInt(hex.substring(2, 4), 16);
-						const b = parseInt(hex.substring(4, 6), 16);
-						const luminance = (0.299*r + 0.587*g + 0.114*b) / 255;
-						return luminance > 0.5 ? 'black' : 'white';
-					},
+						// Border based on status
+						'border-color': ele => {
+							const status = ele.data('status');
+							if (status === 'live') return '#2ECC71';
+							if (status === 'in-development') return 'orange';
+							if (status === 'planned') return '#3498DB';
+							return '#555';
+						},
+						'border-width': 3,
+						'border-style': 'double',
 
-					// Label
-					'label': 'data(label)',
-					'font-size': '7px',
-					'font-weight': 'bold',
-					
-					// Text wrapping and multiline support
-					'text-wrap': 'wrap',
-					'text-max-width': '50px',
-					
-					'text-valign': 'center',
-					'text-halign': 'center',
-					
-					// Node size
-					'width': 65,
-					'height': 65,
-					
-					// Shape by type
-					'shape': ele => {
-						if (ele.data('type') === 'tool') return 'round-rectangle';
-						if (ele.data('type') === 'lambda') return 'hexagon';
-						if (ele.data('type') === 'container') return 'rectangle';
-						return 'ellipse';
+						// ADA-compliant text color selection
+						'color': ele => {
+							const bg = ele.style('background-color');
+							const hex = bg.replace('#', '');
+							const r = parseInt(hex.substring(0, 2), 16);
+							const g = parseInt(hex.substring(2, 4), 16);
+							const b = parseInt(hex.substring(4, 6), 16);
+							const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+							return luminance > 0.5 ? 'black' : 'white';
+						},
+
+						// Label
+						'label': 'data(label)',
+						'font-size': '7px',
+						'font-weight': 'bold',
+
+						// Text wrapping and multiline support
+						'text-wrap': 'wrap',
+						'text-max-width': '50px',
+
+						'text-valign': 'center',
+						'text-halign': 'center',
+
+						// Node size
+						'width': 65,
+						'height': 65,
+
+						// Shape by type
+						'shape': ele => {
+							if (ele.data('type') === 'tool') return 'round-rectangle';
+							if (ele.data('type') === 'lambda') return 'hexagon';
+							if (ele.data('type') === 'container') return 'rectangle';
+							return 'ellipse';
+						}
+					}
+				},
+
+				{
+					selector: 'edge',
+					style: {
+						'line-color': 'lightblue',
+						'width': 1,
+						'curve-style': 'bezier',
+						'target-arrow-shape': 'triangle',
+						'target-arrow-color': '#ccc',
+						'font-size': '6px',
+						'text-background-opacity': 0.7,
+						'text-background-color': '#ffffff',
+						'text-background-padding': '2px',
+						'label': 'data(label)'
 					}
 				}
-			},
-			
-			{
-				selector: 'edge',
-				style: {
-					'line-color': 'lightblue',
-					'width': 1,
-					'curve-style': 'bezier',
-					'target-arrow-shape': 'triangle',
-					'target-arrow-color': '#ccc',
-					'font-size': '6px',
-					'text-background-opacity': 0.7,
-					'text-background-color': '#ffffff',
-					'text-background-padding': '2px',
-					'label': 'data(label)'
-				}
-			}
-		]
-	});
-	
-	
-	// -------------------------
-	// Save positions on drag
-	// -------------------------
-	cy.on('dragfree', 'node', () => {
-		const positions = {};
-		cy.nodes().forEach(node => {
-			positions[node.id()] = node.position();
+			]
 		});
-		localStorage.setItem("cyPositions", JSON.stringify(positions));
-	});
 
-</script>
+
+		// -------------------------
+		// Save positions on drag
+		// -------------------------
+		cy.on('dragfree', 'node', () => {
+			const positions = {};
+			cy.nodes().forEach(node => {
+				positions[node.id()] = node.position();
+			});
+			localStorage.setItem("cyPositions", JSON.stringify(positions));
+		});
+
+		// Reset positions
+		function resetPositions() {
+			localStorage.setItem("cyPositions", JSON.stringify(defaultPositions));
+			localStorage.setItem("appVersion", VERSION);
+			window.location.reload();
+		}
+
+	</script>
 </body>
+
 </html>
